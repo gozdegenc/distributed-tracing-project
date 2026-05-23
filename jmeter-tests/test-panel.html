@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<title>JMeter Test Panel · Distributed Tracing</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b1120;color:#e2e8f0;min-height:100vh}
+:root{
+  --bg:#0b1120;--surface:#131f35;--surface2:#0f1a2e;--border:#1e3a5f;
+  --accent:#3b82f6;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;
+  --purple:#8b5cf6;--cyan:#06b6d4;--text:#e2e8f0;--muted:#64748b;
+}
+
+/* ── Header ── */
+header{
+  background:linear-gradient(90deg,#0f1e36,#162a4a);
+  border-bottom:1px solid var(--border);
+  padding:14px 28px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:100;
+}
+.logo{
+  width:38px;height:38px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;box-shadow:0 0 18px rgba(59,130,246,.35);
+}
+.header-title{flex:1}
+.header-title h1{font-size:17px;font-weight:700}
+.header-title p{font-size:11px;color:var(--muted);margin-top:2px}
+.health-row{display:flex;gap:8px;align-items:center}
+.hdot{
+  display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);
+  padding:4px 10px;background:#0d1b2e;border:1px solid var(--border);border-radius:20px;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.hdot:hover{border-color:var(--accent);color:var(--text)}
+.dot{width:7px;height:7px;border-radius:50%;background:#475569;flex-shrink:0;transition:background .3s}
+.dot.online{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.55)}
+.dot.offline{background:var(--red)}
+.dot.checking{background:var(--amber);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.btn-primary{
+  padding:9px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;
+  font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;
+  transition:all .2s;white-space:nowrap;
+}
+.btn-primary:hover{background:#2563eb;box-shadow:0 4px 14px rgba(59,130,246,.35)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Stats Bar ── */
+.stats-bar{display:flex;border-bottom:1px solid var(--border);background:var(--surface2)}
+.stat-item{
+  flex:1;padding:13px 18px;border-right:1px solid var(--border);
+  display:flex;align-items:center;gap:11px;
+}
+.stat-item:last-child{border-right:none}
+.stat-icon{font-size:17px}
+.stat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-value{font-size:21px;font-weight:800;margin-top:1px}
+.c-green{color:var(--green)}.c-red{color:var(--red)}.c-amber{color:var(--amber)}
+.c-blue{color:var(--accent)}.c-cyan{color:var(--cyan)}.c-purple{color:var(--purple)}
+
+/* ── Test Grid ── */
+.test-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:20px 24px;
+}
+@media(max-width:1000px){.test-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.test-grid{grid-template-columns:1fr}}
+
+/* ── Test Card ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:18px;display:flex;flex-direction:column;gap:12px;
+  position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s;
+}
+.card:hover{border-color:#2a4a7f}
+.card.running{border-color:var(--accent);box-shadow:0 0 22px rgba(59,130,246,.14)}
+.card.done-ok{border-color:#166534}
+.card.done-err{border-color:#7f1d1d}
+.card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:14px 0 0 14px}
+.t1::before{background:var(--accent)}
+.t2::before{background:var(--red)}
+.t3::before{background:var(--purple)}
+.t4::before{background:var(--cyan)}
+.t5::before{background:var(--amber)}
+.t6::before{background:var(--green)}
+
+.card-head{display:flex;align-items:flex-start;gap:11px}
+.badge{
+  width:34px;height:34px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;
+}
+.t1 .badge{background:rgba(59,130,246,.2);color:#60a5fa}
+.t2 .badge{background:rgba(239,68,68,.2);color:#f87171}
+.t3 .badge{background:rgba(139,92,246,.2);color:#a78bfa}
+.t4 .badge{background:rgba(6,182,212,.2);color:#22d3ee}
+.t5 .badge{background:rgba(245,158,11,.2);color:#fbbf24}
+.t6 .badge{background:rgba(34,197,94,.2);color:#4ade80}
+.card-title{font-size:13px;font-weight:700;line-height:1.3}
+.card-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* Params */
+.params{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.p-item{background:#0d1b2e;border:1px solid #1a3050;border-radius:6px;padding:5px 9px}
+.p-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.p-val{font-size:11px;font-weight:600;margin-top:2px;font-family:monospace}
+
+/* Endpoints */
+.eps{display:flex;flex-direction:column;gap:4px}
+.ep{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);font-family:monospace}
+.mth{padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;flex-shrink:0}
+.GET{background:rgba(34,197,94,.18);color:#4ade80}
+.POST{background:rgba(59,130,246,.18);color:#60a5fa}
+
+/* SLA chips */
+.slas{display:flex;gap:5px;flex-wrap:wrap}
+.sla{
+  padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;
+  background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25);
+}
+
+/* Progress */
+.prog{height:3px;background:#0d1b2e;border-radius:2px;overflow:hidden;display:none}
+.prog.show{display:block}
+.fill{height:100%;width:0%;border-radius:2px;transition:width .4s ease}
+.t1 .fill{background:var(--accent)}.t2 .fill{background:var(--red)}
+.t3 .fill{background:var(--purple)}.t4 .fill{background:var(--cyan)}
+.t5 .fill{background:var(--amber)}.t6 .fill{background:var(--green)}
+
+/* Mini results */
+.mini{
+  display:none;background:#0d1b2e;border:1px solid #1a3050;
+  border-radius:8px;padding:10px 12px;gap:8px;flex-wrap:wrap;
+}
+.mini.show{display:flex}
+.ms{text-align:center;flex:1;min-width:50px}
+.ms-val{font-size:15px;font-weight:700}
+.ms-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;margin-top:2px}
+
+/* Run button */
+.btn-run{
+  padding:8px 14px;border:1px solid var(--border);border-radius:8px;
+  background:#0d1b2e;color:var(--text);font-size:12px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .2s;margin-top:auto;
+}
+.btn-run:hover{background:#1a3050;border-color:var(--accent);color:#60a5fa}
+.btn-run:disabled{opacity:.5;cursor:not-allowed}
+.btn-run.running{border-color:var(--accent);color:var(--accent)}
+
+/* ── Log Panel ── */
+.log-panel{
+  margin:0 24px 24px;background:var(--surface);
+  border:1px solid var(--border);border-radius:14px;overflow:hidden;
+}
+.log-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 16px;border-bottom:1px solid var(--border);background:#0f1a2e;
+}
+.log-ttl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.btn-clr{
+  padding:4px 12px;border-radius:5px;background:transparent;
+  border:1px solid var(--border);color:var(--muted);font-size:11px;cursor:pointer;transition:all .2s;
+}
+.btn-clr:hover{border-color:var(--red);color:var(--red)}
+.log-wrap{max-height:280px;overflow-y:auto}
+.log-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.log-tbl th{
+  padding:6px 10px;text-align:left;color:var(--muted);font-size:10px;
+  text-transform:uppercase;border-bottom:1px solid var(--border);background:#0d1b2e;
+  position:sticky;top:0;
+}
+.lr td{padding:6px 10px;border-bottom:1px solid #ffffff05;font-family:monospace}
+.lr:last-child td{border-bottom:none}
+.lr:hover td{background:#ffffff04}
+.lr.ok td:first-child{border-left:3px solid var(--green)}
+.lr.fail td:first-child{border-left:3px solid var(--red)}
+.lr.warn td:first-child{border-left:3px solid var(--amber)}
+.s-ok{color:var(--green);font-weight:600}.s-err{color:var(--red);font-weight:600}
+.sla-ok{color:var(--green)}.sla-ng{color:var(--amber)}
+.empty{padding:36px;text-align:center;color:var(--muted);font-size:13px}
+
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .7s linear infinite;display:inline-block}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#0d1b2e}
+::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🔍</div>
+  <div class="header-title">
+    <h1>JMeter Test Panel</h1>
+    <p>Distributed Tracing Demo · E-Ticaret Sipariş Yönetimi · Gözde Genç</p>
+  </div>
+  <div class="health-row" id="hrow">
+    <div class="hdot" onclick="checkAll()" title=":8000"><div class="dot" id="d-gw"></div>Gateway</div>
+    <div class="hdot" onclick="checkAll()" title=":8001"><div class="dot" id="d-ord"></div>Order</div>
+    <div class="hdot" onclick="checkAll()" title=":8002"><div class="dot" id="d-inv"></div>Inventory</div>
+    <div class="hdot" onclick="checkAll()" title=":8003"><div class="dot" id="d-pay"></div>Payment</div>
+    <div class="hdot" onclick="checkAll()" title=":8004"><div class="dot" id="d-not"></div>Notif</div>
+  </div>
+  <button class="btn-primary" id="btn-all" onclick="runAll()">▶ Tümünü Çalıştır</button>
+</header>
+
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-icon">📤</div>
+    <div><div class="stat-label">Toplam İstek</div><div class="stat-value" id="s-tot">0</div></div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon">✓</div>
+    <div><div class="stat-label">Başarılı</div><div class="stat-value c-green" id="s-ok">0</div></div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon">✗</div>
+    <div><div class="stat-label">Hatalı</div><div class="stat-value c-red" id="s-err">0</div></div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon">⌚</div>
+    <div><div class="stat-label">Ort. Latency</div><div class="stat-value" id="s-avg">—</div></div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon">⚡</div>
+    <div><div class="stat-label">SLA Başarı</div><div class="stat-value c-amber" id="s-sla">—</div></div>
+  </div>
+</div>
+
+<div class="test-grid">
+
+  <!-- T1 -->
+  <div class="card t1" id="c1">
+    <div class="card-head">
+      <div class="badge">T1</div>
+      <div><div class="card-title">Baseline Load Test</div><div class="card-sub">Normal yük altında temel performans</div></div>
+    </div>
+    <div class="params">
+      <div class="p-item"><div class="p-lbl">Concurrent</div><div class="p-val">50 kullanıcı</div></div>
+      <div class="p-item"><div class="p-lbl">Süre</div><div class="p-val">5 dakika</div></div>
+      <div class="p-item"><div class="p-lbl">Think Time</div><div class="p-val">300–800ms</div></div>
+      <div class="p-item"><div class="p-lbl">Ürün</div><div class="p-val">PROD-002</div></div>
+    </div>
+    <div class="eps">
+      <div class="ep"><span class="mth GET">GET</span>/api/v1/products</div>
+      <div class="ep"><span class="mth POST">POST</span>/api/v1/orders/initiate</div>
+      <div class="ep"><span class="mth GET">GET</span>/api/v1/orders</div>
+    </div>
+    <div class="slas">
+      <span class="sla">Products &lt;200ms</span>
+      <span class="sla">Order &lt;1000ms</span>
+      <span class="sla">List &lt;500ms</span>
+    </div>
+    <div class="prog" id="pg1"><div class="fill" id="fl1"></div></div>
+    <div class="mini" id="m1">
+      <div class="ms"><div class="ms-val c-green" id="m1ok">0</div><div class="ms-lbl">Başarılı</div></div>
+      <div class="ms"><div class="ms-val c-red" id="m1er">0</div><div class="ms-lbl">Hatalı</div></div>
+      <div class="ms"><div class="ms-val c-blue" id="m1av">—</div><div class="ms-lbl">Ort ms</div></div>
+      <div class="ms"><div class="ms-val c-amber" id="m1sl">—</div><div class="ms-lbl">SLA %</div></div>
+    </div>
+    <button class="btn-run" id="b1" onclick="runT1()">▶ Testi Çalıştır</button>
+  </div>
+
+  <!-- T2 -->
+  <div class="card t2" id="c2">
+    <div class="card-head">
+      <div class="badge">T2</div>
+      <div><div class="card-title">Stress Test</div><div class="card-sub">Yüksek yük altında sistem dayanıklılığı</div></div>
+    </div>
+    <div class="params">
+      <div class="p-item"><div class="p-lbl">Concurrent</div><div class="p-val">200 kullanıcı</div></div>
+      <div class="p-item"><div class="p-lbl">Süre</div><div class="p-val">5 dakika</div></div>
+      <div class="p-item"><div class="p-lbl">Ramp-up</div><div class="p-val">60s</div></div>
+      <div class="p-item"><div class="p-lbl">Ürün</div><div class="p-val">PROD-001~005</div></div>
+    </div>
+    <div class="eps">
+      <div class="ep"><span class="mth POST">POST</span>/api/v1/orders (stress)</div>
+      <div class="ep"><span class="mth GET">GET</span>/api/v1/orders (stress read)</div>
+    </div>
+    <div class="slas">
+      <span class="sla">Order &lt;2000ms</span>
+      <span class="sla">Hata &lt;10%</span>
+    </div>
+    <div class="prog" id="pg2"><div class="fill" id="fl2"></div></div>
+    <div class="mini" id="m2">
+      <div class="ms"><div class="ms-val c-green" id="m2ok">0</div><div class="ms-lbl">Başarılı</div></div>
+      <div class="ms"><div class="ms-val c-red" id="m2er">0</div><div class="ms-lbl">Hatalı</div></div>
+      <div class="ms"><div class="ms-val c-blue" id="m2av">—</div><div class="ms-lbl">Ort ms</div></div>
+      <div class="ms"><div class="ms-val c-amber" id="m2sl">—</div><div class="ms-lbl">SLA %</div></div>
+    </div>
+    <button class="btn-run" id="b2" onclick="runT2()">▶ Testi Çalıştır</button>
+  </div>
+
+  <!-- T3 -->
+  <div class="card t3" id="c3">
+    <div class="card-head">
+      <div class="badge">T3</div>
+      <div><div class="card-title">End-to-End Trace Chain</div><div class="card-sub">Tam sipariş akışı: initiate → pay</div></div>
+    </div>
+    <div class="params">
+      <div class="p-item"><div class="p-lbl">Concurrent</div><div class="p-val">10 kullanıcı</div></div>
+      <div class="p-item"><div class="p-lbl">İterasyon</div><div class="p-val">30 tur</div></div>
+      <div class="p-item"><div class="p-lbl">Checkout</div><div class="p-val">500ms delay</div></div>
+      <div class="p-item"><div class="p-lbl">Ürün</div><div class="p-val">PROD-002</div></div>
+    </div>
+    <div class="eps">
+      <div class="ep"><span class="mth POST">POST</span>/api/v1/orders/initiate</div>
+      <div class="ep" style="padding-left:14px;color:#475569">→ 500ms checkout simülasyonu</div>
+      <div class="ep"><span class="mth POST">POST</span>/api/v1/orders/{id}/pay</div>
+    </div>
+    <div class="slas">
+      <span class="sla">E2E &lt;3000ms</span>
+      <span class="sla">trace_id alınmalı</span>
+    </div>
+    <div class="prog" id="pg3"><div class="fill" id="fl3"></div></div>
+    <div class="mini" id="m3">
+      <div class="ms"><div class="ms-val c-green" id="m3ok">0</div><div class="ms-lbl">Tamamlanan</div></div>
+      <div class="ms"><div class="ms-val c-red" id="m3er">0</div><div class="ms-lbl">Hatalı</div></div>
+      <div class="ms"><div class="ms-val c-purple" id="m3av">—</div><div class="ms-lbl">E2E ms</div></div>
+      <div class="ms"><div class="ms-val" id="m3tr" style="font-size:9px;color:var(--muted)">—</div><div class="ms-lbl">Son Trace</div></div>
+    </div>
+    <button class="btn-run" id="b3" onclick="runT3()">▶ Testi Çalıştır</button>
+  </div>
+
+  <!-- T4 -->
+  <div class="card t4" id="c4">
+    <div class="card-head">
+      <div class="badge">T4</div>
+      <div><div class="card-title">Trace Overhead Benchmark</div><div class="card-sub">Pattern metriği: μs/span maliyeti</div></div>
+    </div>
+    <div class="params">
+      <div class="p-item"><div class="p-lbl">Wave</div><div class="p-val">3 wave</div></div>
+      <div class="p-item"><div class="p-lbl">Paralel/Wave</div><div class="p-val">5 paralel</div></div>
+      <div class="p-item"><div class="p-lbl">Toplam</div><div class="p-val">15 call</div></div>
+      <div class="p-item"><div class="p-lbl">Cooldown</div><div class="p-val">2s arası</div></div>
+    </div>
+    <div class="eps">
+      <div class="ep"><span class="mth GET">GET</span>/api/v1/trace-overhead</div>
+    </div>
+    <div class="slas">
+      <span class="sla">HTTP 200</span>
+      <span class="sla">overhead_percent</span>
+      <span class="sla">per_span_us</span>
+    </div>
+    <div class="prog" id="pg4"><div class="fill" id="fl4"></div></div>
+    <div class="mini" id="m4">
+      <div class="ms"><div class="ms-val c-cyan" id="m4ov">—%</div><div class="ms-lbl">Overhead</div></div>
+      <div class="ms"><div class="ms-val c-cyan" id="m4sp">—μs</div><div class="ms-lbl">Per Span</div></div>
+      <div class="ms"><div class="ms-val c-green" id="m4ok">0</div><div class="ms-lbl">Başarılı</div></div>
+      <div class="ms"><div class="ms-val c-red" id="m4er">0</div><div class="ms-lbl">Hatalı</div></div>
+    </div>
+    <button class="btn-run" id="b4" onclick="runT4()">▶ Testi Çalıştır</button>
+  </div>
+
+  <!-- T5 -->
+  <div class="card t5" id="c5">
+    <div class="card-head">
+      <div class="badge">T5</div>
+      <div><div class="card-title">Service Chain Latency</div><div class="card-sub">Servis başına hop gecikme analizi</div></div>
+    </div>
+    <div class="params">
+      <div class="p-item"><div class="p-lbl">Paralel/Round</div><div class="p-val">10 istek</div></div>
+      <div class="p-item"><div class="p-lbl">Round</div><div class="p-val">5 tur</div></div>
+      <div class="p-item"><div class="p-lbl">Hop</div><div class="p-val">5×2 instance</div></div>
+      <div class="p-item"><div class="p-lbl">Analiz</div><div class="p-val">Per-service</div></div>
+    </div>
+    <div class="eps">
+      <div class="ep"><span class="mth GET">GET</span>:8000/health → Gateway</div>
+      <div class="ep"><span class="mth GET">GET</span>:8001/health → Order</div>
+      <div class="ep"><span class="mth GET">GET</span>:8002/stock  → Inventory</div>
+      <div class="ep"><span class="mth GET">GET</span>:8004/health → Notif</div>
+      <div class="ep"><span class="mth GET">GET</span>:8000/api/v1/services/health</div>
+    </div>
+    <div class="slas">
+      <span class="sla">Gateway &lt;50ms</span>
+      <span class="sla">Inventory &lt;200ms</span>
+      <span class="sla">Chain &lt;500ms</span>
+    </div>
+    <div class="prog" id="pg5"><div class="fill" id="fl5"></div></div>
+    <div class="mini" id="m5" style="flex-direction:column">
+      <div id="hop-bars" style="display:flex;gap:6px;width:100%"></div>
+    </div>
+    <button class="btn-run" id="b5" onclick="runT5()">▶ Testi Çalıştır</button>
+  </div>
+
+  <!-- T6 -->
+  <div class="card t6" id="c6">
+    <div class="card-head">
+      <div class="badge">T6</div>
+      <div><div class="card-title">Health Check Monitoring</div><div class="card-sub">Tüm servislerin uptime takibi</div></div>
+    </div>
+    <div class="params">
+      <div class="p-item"><div class="p-lbl">Thread</div><div class="p-val">1 sequential</div></div>
+      <div class="p-item"><div class="p-lbl">Round</div><div class="p-val">5 tur</div></div>
+      <div class="p-item"><div class="p-lbl">Aralık</div><div class="p-val">1s poll</div></div>
+      <div class="p-item"><div class="p-lbl">Servis</div><div class="p-val">4 endpoint</div></div>
+    </div>
+    <div class="eps">
+      <div class="ep"><span class="mth GET">GET</span>:8000/health (Gateway)</div>
+      <div class="ep"><span class="mth GET">GET</span>:8001/health (Order)</div>
+      <div class="ep"><span class="mth GET">GET</span>:8002/health (Inventory)</div>
+      <div class="ep"><span class="mth GET">GET</span>:8004/health (Notif)</div>
+    </div>
+    <div class="slas">
+      <span class="sla">"healthy" içermeli</span>
+      <span class="sla">Uptime %100</span>
+    </div>
+    <div class="prog" id="pg6"><div class="fill" id="fl6"></div></div>
+    <div class="mini" id="m6">
+      <div class="ms"><div class="ms-val c-green" id="m6up">0</div><div class="ms-lbl">Up</div></div>
+      <div class="ms"><div class="ms-val c-red" id="m6dn">0</div><div class="ms-lbl">Down</div></div>
+      <div class="ms"><div class="ms-val c-green" id="m6ut">—</div><div class="ms-lbl">Uptime %</div></div>
+      <div class="ms"><div class="ms-val c-blue" id="m6av">—</div><div class="ms-lbl">Ort ms</div></div>
+    </div>
+    <button class="btn-run" id="b6" onclick="runT6()">▶ Testi Çalıştır</button>
+  </div>
+
+</div>
+
+<!-- LOG -->
+<div class="log-panel">
+  <div class="log-head">
+    <span class="log-ttl">📋 Live Request Log</span>
+    <button class="btn-clr" onclick="clearLog()">Temizle</button>
+  </div>
+  <div class="log-wrap" id="logwrap">
+    <div class="empty" id="logempty">Henüz test çalıştırılmadı. Yukarıdan bir test seçin veya "Tümünü Çalıştır" butonuna basın.</div>
+    <table class="log-tbl" id="logtbl" style="display:none">
+      <thead><tr>
+        <th>Zaman</th><th>Test</th><th>Method</th><th>Endpoint</th>
+        <th>Status</th><th>Latency</th><th>SLA</th>
+      </tr></thead>
+      <tbody id="logbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const GW = 8000, PORTS = {gw:8000,ord:8001,inv:8002,pay:8003,not:8004};
+const BASE = `http://localhost:${GW}`;
+
+let tot=0, ok=0, err=0, lats=[], slaOk=0, slaTot=0;
+
+// ── fetch wrapper ──────────────────────────────────────────────────────────
+async function tf(url, opts={}) {
+  const t0 = performance.now();
+  try {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 8000);
+    const r = await fetch(url, {...opts, signal: ac.signal});
+    clearTimeout(timer);
+    const lat = Math.round(performance.now() - t0);
+    let body = {};
+    try { body = await r.json(); } catch {}
+    return {ok: r.ok, status: r.status, lat, body};
+  } catch(e) {
+    return {ok: false, status: 0, lat: Math.round(performance.now()-t0), err: e.name==='AbortError'?'Timeout':e.message};
+  }
+}
+
+// ── global stats ───────────────────────────────────────────────────────────
+function record(r, sla=null) {
+  tot++; if(r.ok) ok++; else err++;
+  if(r.lat != null) lats.push(r.lat);
+  if(sla !== null){ slaTot++; if(r.ok && r.lat<=sla) slaOk++; }
+  const avg = lats.length ? Math.round(lats.reduce((a,b)=>a+b,0)/lats.length) : null;
+  document.getElementById('s-tot').textContent = tot;
+  document.getElementById('s-ok').textContent  = ok;
+  document.getElementById('s-err').textContent = err;
+  document.getElementById('s-avg').textContent = avg ? avg+'ms' : '—';
+  document.getElementById('s-sla').textContent = slaTot ? Math.round(slaOk/slaTot*100)+'%' : '—';
+}
+
+// ── log ────────────────────────────────────────────────────────────────────
+function log(tid, method, path, r, sla=null) {
+  record(r, sla);
+  document.getElementById('logempty').style.display = 'none';
+  document.getElementById('logtbl').style.display = 'table';
+  const body = document.getElementById('logbody');
+  const slaPass = sla !== null ? (r.ok && r.lat <= sla) : null;
+  const rc = !r.ok ? 'fail' : slaPass===false ? 'warn' : 'ok';
+  const t = new Date();
+  const ts = [t.getHours(),t.getMinutes(),t.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  const slaHtml = sla===null ? '—'
+    : slaPass ? `<span class="sla-ok">✓ &lt;${sla}ms</span>`
+    : `<span class="sla-ng">✗ &gt;${sla}ms</span>`;
+  const tr = document.createElement('tr');
+  tr.className = `lr ${rc}`;
+  tr.innerHTML = `
+    <td style="color:var(--muted)">${ts}</td>
+    <td style="font-size:10px;font-weight:700;color:var(--muted)">${tid}</td>
+    <td><span class="mth ${method}">${method}</span></td>
+    <td style="color:#94a3b8;font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${path}</td>
+    <td>${r.ok ? `<span class="s-ok">${r.status}</span>` : `<span class="s-err">${r.status||'ERR'}</span>`}</td>
+    <td style="color:${slaPass===false?'var(--amber)':'var(--text)'}">${r.lat}ms</td>
+    <td>${slaHtml}</td>`;
+  body.insertBefore(tr, body.firstChild);
+  while(body.children.length > 200) body.removeChild(body.lastChild);
+}
+
+function clearLog() {
+  document.getElementById('logbody').innerHTML = '';
+  document.getElementById('logtbl').style.display = 'none';
+  document.getElementById('logempty').style.display = 'block';
+  tot=0;ok=0;err=0;lats=[];slaOk=0;slaTot=0;
+  ['s-tot','s-ok','s-err'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('s-avg').textContent='—';
+  document.getElementById('s-sla').textContent='—';
+}
+
+// ── card helpers ───────────────────────────────────────────────────────────
+function start(bid, cid) {
+  const b=document.getElementById(bid), c=document.getElementById(cid);
+  b.disabled=true; b.innerHTML='<span class="spin">◌</span> Çalışıyor...'; b.classList.add('running');
+  c.classList.remove('done-ok','done-err'); c.classList.add('running');
+  document.getElementById('pg'+cid.slice(-1)).classList.add('show');
+  setFill(cid, 0);
+}
+function done(bid, cid, success=true) {
+  const b=document.getElementById(bid), c=document.getElementById(cid);
+  b.disabled=false; b.innerHTML='↺ Tekrar Çalıştır'; b.classList.remove('running');
+  c.classList.remove('running'); c.classList.add(success?'done-ok':'done-err');
+  setFill(cid, 100);
+}
+function setFill(cid, pct) {
+  const n=cid.slice(-1);
+  document.getElementById('fl'+n).style.width=pct+'%';
+}
+function showMini(mid) { document.getElementById(mid).classList.add('show'); }
+function delay(ms) { return new Promise(r=>setTimeout(r,ms)); }
+function agg(results) {
+  const ls = results.filter(r=>r&&r.lat!=null).map(r=>r.lat);
+  return {
+    ok: results.filter(r=>r&&r.ok).length,
+    err: results.filter(r=>!r||!r.ok).length,
+    avg: ls.length ? Math.round(ls.reduce((a,b)=>a+b,0)/ls.length) : 0
+  };
+}
+
+// ── health ─────────────────────────────────────────────────────────────────
+async function chk(port, dotId) {
+  const d=document.getElementById(dotId);
+  d.className='dot checking';
+  const r = await tf(`http://localhost:${port}/health`);
+  d.className = r.ok ? 'dot online' : 'dot offline';
+}
+function checkAll() {
+  chk(PORTS.gw,'d-gw'); chk(PORTS.ord,'d-ord'); chk(PORTS.inv,'d-inv');
+  chk(PORTS.pay,'d-pay'); chk(PORTS.not,'d-not');
+}
+
+// ── TEST 1: Baseline ───────────────────────────────────────────────────────
+async function runT1() {
+  start('b1','c1');
+  const DURATION = 5 * 60 * 1000; // 5 dakika
+  const USERS = 50;
+  const startTime = Date.now();
+  const all = [];
+  let wave = 0;
+
+  while (Date.now() - startTime < DURATION) {
+    const elapsed = Date.now() - startTime;
+    setFill('c1', Math.min(99, Math.round(elapsed / DURATION * 100)));
+
+    const ps = Array.from({length: USERS}, async (_, i) => {
+      const idx = wave * USERS + i; let r;
+      const roll = idx % 3;
+      if (roll === 0) {
+        r = await tf(`${BASE}/api/v1/products`);
+        log('T1','GET','/api/v1/products',r,200);
+      } else if (roll === 1) {
+        r = await tf(`${BASE}/api/v1/orders/initiate`,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({customer_id:`CUST-${idx+1}`,product_id:'PROD-002',quantity:1,total_price:299.00})});
+        log('T1','POST','/api/v1/orders/initiate',r,1000);
+      } else {
+        r = await tf(`${BASE}/api/v1/orders`);
+        log('T1','GET','/api/v1/orders',r,500);
+      }
+      return r;
+    });
+
+    (await Promise.allSettled(ps)).forEach(p => all.push(p.value));
+    wave++;
+    await delay(300 + Math.floor(Math.random() * 500)); // 300–800ms think time
+  }
+
+  const s = agg(all);
+  const slaPct = all.length ? Math.round(all.filter(r=>r&&r.ok&&r.lat<=1000).length/all.length*100) : 0;
+  document.getElementById('m1ok').textContent = s.ok;
+  document.getElementById('m1er').textContent = s.err;
+  document.getElementById('m1av').textContent = s.avg+'ms';
+  document.getElementById('m1sl').textContent = slaPct+'%';
+  showMini('m1'); done('b1','c1', s.err < all.length * 0.05);
+}
+
+// ── TEST 2: Stress ─────────────────────────────────────────────────────────
+async function runT2() {
+  start('b2','c2');
+  const DURATION = 5 * 60 * 1000; // 5 dakika
+  const USERS = 200;
+  const startTime = Date.now();
+  const all = [];
+  let wave = 0;
+
+  while (Date.now() - startTime < DURATION) {
+    const elapsed = Date.now() - startTime;
+    setFill('c2', Math.min(99, Math.round(elapsed / DURATION * 100)));
+
+    const ps = Array.from({length: USERS}, async (_, i) => {
+      const idx = wave * USERS + i; let r;
+      if (idx % 2 === 0) {
+        r = await tf(`${BASE}/api/v1/orders`, {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({customer_id:`STRESS-${(idx%500)+1}`, product_id:`PROD-00${(idx%5)+1}`, quantity:(idx%10)+1, total_price:((idx%950)+50)+'.00'})});
+        log('T2','POST','/api/v1/orders',r,2000);
+      } else {
+        r = await tf(`${BASE}/api/v1/orders`);
+        log('T2','GET','/api/v1/orders',r,2000);
+      }
+      return r;
+    });
+    (await Promise.allSettled(ps)).forEach(p => all.push(p.value));
+    wave++;
+  }
+
+  const s = agg(all);
+  const slaPct = all.length ? Math.round(all.filter(r=>r&&r.ok&&r.lat<=2000).length/all.length*100) : 0;
+  document.getElementById('m2ok').textContent = s.ok;
+  document.getElementById('m2er').textContent = s.err;
+  document.getElementById('m2av').textContent = s.avg+'ms';
+  document.getElementById('m2sl').textContent = slaPct+'%';
+  showMini('m2'); done('b2','c2', all.length ? s.err/all.length < 0.10 : false);
+}
+
+// ── TEST 3: E2E ────────────────────────────────────────────────────────────
+async function runT3() {
+  start('b3','c3');
+  const ROUNDS=30, USERS=10; let cok=0,cerr=0,lastTrace='—'; const e2eLats=[];
+
+  async function runChain(idx) {
+    const t0=performance.now();
+    const init=await tf(`${BASE}/api/v1/orders/initiate`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({customer_id:`E2E-${idx+1}`,product_id:'PROD-002',quantity:1,total_price:299.00})});
+    log('T3','POST','/api/v1/orders/initiate',init,null);
+    if(!init.ok) return {ok:false};
+    const oid=init.body?.order_id||'ORD-FAIL';
+    lastTrace=init.body?.trace_id?(init.body.trace_id.substring(0,8)+'...'):'—';
+    await delay(500);
+    const pay=await tf(`${BASE}/api/v1/orders/${oid}/pay`,{method:'POST',headers:{'Content-Type':'application/json'}});
+    const e2e=Math.round(performance.now()-t0);
+    log('T3','POST',`/api/v1/orders/${oid}/pay`,{...pay,lat:e2e},3000);
+    e2eLats.push(e2e);
+    return pay;
+  }
+
+  for(let rnd=0;rnd<ROUNDS;rnd++){
+    const ps=Array.from({length:USERS},(_,i)=>runChain(rnd*USERS+i));
+    const results=await Promise.allSettled(ps);
+    results.forEach(p=>{ if(p.value?.ok) cok++; else cerr++; });
+    setFill('c3',Math.round((rnd+1)/ROUNDS*100));
+  }
+
+  const avgE2e=e2eLats.length?Math.round(e2eLats.reduce((a,b)=>a+b,0)/e2eLats.length):0;
+  document.getElementById('m3ok').textContent=cok;
+  document.getElementById('m3er').textContent=cerr;
+  document.getElementById('m3av').textContent=avgE2e+'ms';
+  document.getElementById('m3tr').textContent=lastTrace;
+  showMini('m3'); done('b3','c3',cok>=Math.ceil(ROUNDS*USERS*0.8));
+}
+
+// ── TEST 4: Overhead ───────────────────────────────────────────────────────
+async function runT4() {
+  start('b4','c4');
+  // 3 waves × 5 parallel = 15 call, 2s cooldown (UI: "5 parallel, 15 call, 2s arası")
+  const WAVES=3, PARALLEL=5; let cok=0,cerr=0; const ovhs=[],spans=[];
+  for(let w=0;w<WAVES;w++){
+    const ps=Array.from({length:PARALLEL},async()=>{
+      const r=await tf(`${BASE}/api/v1/trace-overhead`);
+      log('T4','GET','/api/v1/trace-overhead',r,null);
+      return r;
+    });
+    const results=await Promise.allSettled(ps);
+    results.forEach(p=>{
+      const r=p.value;
+      if(r?.ok){
+        cok++;
+        const o=r.body?.benchmark?.overhead_percent;
+        const s=r.body?.benchmark?.overhead_per_span_us;
+        if(o!=null) ovhs.push(o);
+        if(s!=null) spans.push(s);
+      } else cerr++;
+    });
+    setFill('c4',Math.round((w+1)/WAVES*100));
+    if(w<WAVES-1) await delay(2000); // 2s cooldown
+  }
+  const avgO=ovhs.length?(ovhs.reduce((a,b)=>a+b,0)/ovhs.length).toFixed(1):'—';
+  const avgS=spans.length?Math.round(spans.reduce((a,b)=>a+b,0)/spans.length):'—';
+  document.getElementById('m4ov').textContent=avgO!=='—'?avgO+'%':'N/A';
+  document.getElementById('m4sp').textContent=avgS!=='—'?avgS+'μs':'N/A';
+  document.getElementById('m4ok').textContent=cok;
+  document.getElementById('m4er').textContent=cerr;
+  showMini('m4'); done('b4','c4',cok>0);
+}
+
+// ── TEST 5: Chain Latency ──────────────────────────────────────────────────
+async function runT5() {
+  start('b5','c5');
+  const hops=[
+    {lbl:'Gateway', url:`http://localhost:${PORTS.gw}/health`,       sla:50,  col:'#3b82f6'},
+    {lbl:'Order',   url:`http://localhost:${PORTS.ord}/health`,      sla:50,  col:'#8b5cf6'},
+    {lbl:'Inventory',url:`http://localhost:${PORTS.inv}/stock`,      sla:200, col:'#f59e0b'},
+    {lbl:'Notif',   url:`http://localhost:${PORTS.not}/health`,      sla:50,  col:'#22c55e'},
+    {lbl:'Chain',   url:`${BASE}/api/v1/services/health`,            sla:500, col:'#06b6d4'},
+  ];
+  const hopLats=hops.map(()=>[]);
+  const rounds=5;
+  // Her round: 5 hop × 2 instance = 10 parallel istek (UI: "10 parallel, 5 tur")
+  for(let rnd=0;rnd<rounds;rnd++){
+    const ps=hops.flatMap((hop,h)=>[0,1].map(()=>
+      tf(hop.url).then(r=>{
+        const label=hop.url.replace(/http:\/\/localhost:\d+/,'');
+        log('T5','GET',label,r,hop.sla);
+        if(r.lat!=null) hopLats[h].push(r.lat);
+      })
+    ));
+    await Promise.allSettled(ps);
+    setFill('c5',Math.round((rnd+1)/rounds*100));
+  }
+  const bars=document.getElementById('hop-bars');
+  bars.innerHTML='';
+  hops.forEach((hop,i)=>{
+    const ls=hopLats[i];
+    const avg=ls.length?Math.round(ls.reduce((a,b)=>a+b,0)/ls.length):0;
+    const pct=Math.min(100,avg/hop.sla*100);
+    const pass=avg<=hop.sla;
+    const d=document.createElement('div');
+    d.style.cssText='flex:1;text-align:center;font-size:10px;min-width:50px';
+    d.innerHTML=`
+      <div style="font-size:14px;font-weight:700;color:${pass?'#4ade80':'#f87171'}">${avg}ms</div>
+      <div style="color:var(--muted);margin-top:2px;font-size:9px">${hop.lbl}</div>
+      <div style="height:3px;background:#1e3a5f;border-radius:2px;margin-top:5px">
+        <div style="height:100%;width:${pct}%;background:${hop.col};border-radius:2px;transition:width .5s"></div>
+      </div>
+      <div style="font-size:8px;color:var(--muted);margin-top:3px">SLA ${hop.sla}ms</div>`;
+    bars.appendChild(d);
+  });
+  document.getElementById('m5').style.display='block';
+  done('b5','c5',true);
+}
+
+// ── TEST 6: Health Monitor ─────────────────────────────────────────────────
+async function runT6() {
+  start('b6','c6');
+  const svcs=[
+    {n:'Gateway',   url:`http://localhost:${PORTS.gw}/health`},
+    {n:'Order',     url:`http://localhost:${PORTS.ord}/health`},
+    {n:'Inventory', url:`http://localhost:${PORTS.inv}/health`},
+    {n:'Notif',     url:`http://localhost:${PORTS.not}/health`},
+  ];
+  let up=0,dn=0; const ls=[];
+  const rounds=5;
+  for(let rnd=0;rnd<rounds;rnd++){
+    for(const s of svcs){
+      const r=await tf(s.url);
+      const healthy=r.ok&&JSON.stringify(r.body).includes('healthy');
+      log('T6','GET',`(${s.n})/health`,r,null);
+      if(healthy) up++; else dn++;
+      if(r.lat) ls.push(r.lat);
+    }
+    setFill('c6',Math.round((rnd+1)/rounds*100));
+    if(rnd<rounds-1) await delay(1000);
+  }
+  const total=up+dn;
+  const avg=ls.length?Math.round(ls.reduce((a,b)=>a+b,0)/ls.length):0;
+  document.getElementById('m6up').textContent=up;
+  document.getElementById('m6dn').textContent=dn;
+  document.getElementById('m6ut').textContent=Math.round(up/total*100)+'%';
+  document.getElementById('m6av').textContent=avg+'ms';
+  showMini('m6'); done('b6','c6',dn===0);
+}
+
+// ── Run All ────────────────────────────────────────────────────────────────
+async function runAll() {
+  const btn=document.getElementById('btn-all');
+  btn.disabled=true; btn.innerHTML='<span class="spin">◌</span> Çalışıyor...';
+  await runT6(); await delay(400);
+  await runT5(); await delay(400);
+  await runT4(); await delay(400);
+  await runT1(); await delay(400);
+  await runT2(); await delay(400);
+  await runT3();
+  btn.disabled=false; btn.innerHTML='▶ Tümünü Çalıştır';
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+checkAll();
+setInterval(checkAll, 30000);
+</script>
+</body>
+</html>

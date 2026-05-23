@@ -1,0 +1,1012 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan"
+              testname="Distributed Tracing Performance Test Plan" enabled="true">
+      <stringProp name="TestPlan.comments">
+        Test1 - Baseline       : 50 kullanici, 5 dk   | Avg, Throughput, Error%
+        Test2 - Stress Test    : 200 kullanici, 5 dk  | Breaking Point, Degradation
+        Test3 - E2E Trace Chain: 5 zincir, 3+2 batch  | E2E latency, trace_id propagation
+        Test4 - Trace Overhead : 5 kullanici, 15x     | overhead_percent, ms/span
+        Test5 - Chain Latency  : 10 kullanici, 50x    | Per-hop latency, SLA per servis
+        Test6 - Health Monitor : 1 kullanici, 20x     | Uptime%
+      </stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="BASE_URL" elementType="Argument">
+            <stringProp name="Argument.name">BASE_URL</stringProp>
+            <stringProp name="Argument.value">localhost</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="GATEWAY_PORT" elementType="Argument">
+            <stringProp name="Argument.name">GATEWAY_PORT</stringProp>
+            <stringProp name="Argument.value">8000</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="ORDER_PORT" elementType="Argument">
+            <stringProp name="Argument.name">ORDER_PORT</stringProp>
+            <stringProp name="Argument.value">8001</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="INVENTORY_PORT" elementType="Argument">
+            <stringProp name="Argument.name">INVENTORY_PORT</stringProp>
+            <stringProp name="Argument.value">8002</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="NOTIFICATION_PORT" elementType="Argument">
+            <stringProp name="Argument.name">NOTIFICATION_PORT</stringProp>
+            <stringProp name="Argument.value">8004</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="SPAN_COUNT_PER_ORDER" elementType="Argument">
+            <stringProp name="Argument.name">SPAN_COUNT_PER_ORDER</stringProp>
+            <stringProp name="Argument.value">5</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           TEST 1: BASELINE  –  50 kullanıcı, 5 dk, ramp 30s
+           Ölçülen: Avg, Throughput (req/s), Error%
+           → Aggregate Report sütunları bu değerleri otomatik hesaplar.
+           SLA: POST < 1000ms, GET < 500ms
+           ═══════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="Test-1: Baseline (50 Users, 5min)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">50</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">30</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+        <stringProp name="ThreadGroup.delay">0</stringProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T1 POST /api/v1/orders" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"customer_id":"CUST-${__Random(1,100)}","product_id":"PROD-00${__Random(1,5)}","quantity":${__Random(1,5)},"total_price":${__Random(100,500)}.00}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/orders</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                         testname="HTTP Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="Accept" elementType="Header">
+                <stringProp name="Header.name">Accept</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                             testname="Assert HTTP 200" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Siparis olusturma basarisiz</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                             testname="SLA: POST orders &lt; 1000ms" enabled="true">
+            <stringProp name="DurationAssertion.duration">1000</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+          <JSONPathExtractor guiclass="JSONPathExtractorGui" testclass="JSONPathExtractor"
+                             testname="Extract trace_id" enabled="true">
+            <stringProp name="JSONPathExtractor.referenceName">trace_id</stringProp>
+            <stringProp name="JSONPathExtractor.jsonPathExpr">$.trace_id</stringProp>
+            <stringProp name="JSONPathExtractor.defaultValue">NO_TRACE</stringProp>
+          </JSONPathExtractor>
+          <hashTree/>
+          <JSONPathExtractor guiclass="JSONPathExtractorGui" testclass="JSONPathExtractor"
+                             testname="Extract order_id" enabled="true">
+            <stringProp name="JSONPathExtractor.referenceName">t1_order_id</stringProp>
+            <stringProp name="JSONPathExtractor.jsonPathExpr">$.order_id</stringProp>
+            <stringProp name="JSONPathExtractor.defaultValue">ORD-0001</stringProp>
+          </JSONPathExtractor>
+          <hashTree/>
+        </hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T1 GET /api/v1/orders" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/orders</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                             testname="Assert HTTP 200" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                             testname="SLA: GET orders &lt; 500ms" enabled="true">
+            <stringProp name="DurationAssertion.duration">500</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+        </hashTree>
+
+        <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer"
+                       testname="Think Time 500ms" enabled="true">
+          <stringProp name="ConstantTimer.delay">500</stringProp>
+        </ConstantTimer>
+        <hashTree/>
+
+      </hashTree>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           TEST 2: STRESS TEST  –  200 kullanıcı, 5 dk, ramp 60s
+           Ölçülen: Breaking point (error% > 10%), Degradation (resp > 2000ms)
+           JSR223 PostProcessor → JMeter log'una BREAKING_POINT / DEGRADATION yazar.
+           Delay: Test1 bittikten sonra başlar (t=330s)
+           ═══════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="Test-2: Stress Test (200 Users, 5min)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">200</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">60</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+        <stringProp name="ThreadGroup.delay">330</stringProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T2 POST /api/v1/orders (Stress)" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"customer_id":"STRESS-${__Random(1,500)}","product_id":"PROD-00${__Random(1,5)}","quantity":${__Random(1,10)},"total_price":${__Random(50,1000)}.00}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/orders</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                         testname="HTTP Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                             testname="Degradation threshold &lt; 2000ms" enabled="true">
+            <stringProp name="DurationAssertion.duration">2000</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Breaking Point and Degradation Detector" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">
+synchronized(props) {
+    def total  = ((props.get("s2_total")  ?: 0) as Integer) + 1
+    def errors = ((props.get("s2_errors") ?: 0) as Integer) + (prev.isSuccessful() ? 0 : 1)
+    props.put("s2_total",  total)
+    props.put("s2_errors", errors)
+
+    def errorRate = total > 0 ? (errors / total.toDouble()) * 100 : 0.0
+    def elapsed   = prev.getTime()
+
+    if (errorRate > 10.0 &amp;&amp; !props.get("s2_bp_logged")) {
+        props.put("s2_bp_logged", true)
+        log.warn("BREAKING_POINT | error_rate=" + String.format("%.2f", errorRate) + "% | errors=" + errors + "/" + total)
+    }
+    if (elapsed > 2000 &amp;&amp; !props.get("s2_deg_logged")) {
+        props.put("s2_deg_logged", true)
+        log.warn("DEGRADATION    | response_time=" + elapsed + "ms exceeded 2000ms threshold")
+    }
+}
+            </stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T2 GET /api/v1/orders (Stress)" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/orders</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+      </hashTree>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           TEST 3: END-TO-END TRACE CHAIN  –  5 zincir, initiate → 500ms → pay
+           Ölçülen: E2E latency, trace_id propagation
+           Batch: 3 paralel + 2 paralel (ramp 5s ile simüle edilir)
+           SLA: E2E < 3000ms, trace_id alınmalı
+           Delay: Test2 bittikten sonra başlar (t=695s)
+           ═══════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="Test-3: E2E Trace Chain (5 Chains, initiate→pay)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">30</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">10</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+        <stringProp name="ThreadGroup.delay">695</stringProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController"
+                               testname="T3 E2E Chain (initiate → pay)" enabled="true">
+          <boolProp name="TransactionController.includeTimers">true</boolProp>
+          <boolProp name="TransactionController.parent">true</boolProp>
+        </TransactionController>
+        <hashTree>
+
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                            testname="T3 POST /api/v1/orders/initiate" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{"customer_id":"E2E-${__threadNum}","product_id":"PROD-002","quantity":1,"total_price":299.00}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+            <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/v1/orders/initiate</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                           testname="HTTP Headers" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <JSONPathExtractor guiclass="JSONPathExtractorGui" testclass="JSONPathExtractor"
+                               testname="Extract order_id" enabled="true">
+              <stringProp name="JSONPathExtractor.referenceName">t3_order_id</stringProp>
+              <stringProp name="JSONPathExtractor.jsonPathExpr">$.order_id</stringProp>
+              <stringProp name="JSONPathExtractor.defaultValue">ORD-FAIL</stringProp>
+            </JSONPathExtractor>
+            <hashTree/>
+            <JSONPathExtractor guiclass="JSONPathExtractorGui" testclass="JSONPathExtractor"
+                               testname="Extract trace_id" enabled="true">
+              <stringProp name="JSONPathExtractor.referenceName">t3_trace_id</stringProp>
+              <stringProp name="JSONPathExtractor.jsonPathExpr">$.trace_id</stringProp>
+              <stringProp name="JSONPathExtractor.defaultValue">NO_TRACE</stringProp>
+            </JSONPathExtractor>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                               testname="Assert trace_id alindi" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="1">NO_TRACE</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">trace_id alinamadi</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">6</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+
+          <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer"
+                         testname="Checkout Simulasyon 500ms" enabled="true">
+            <stringProp name="ConstantTimer.delay">500</stringProp>
+          </ConstantTimer>
+          <hashTree/>
+
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                            testname="T3 POST /api/v1/orders/{id}/pay" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+            <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+            <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.path">/api/v1/orders/${t3_order_id}/pay</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                           testname="HTTP Headers" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                               testname="SLA: E2E &lt; 3000ms" enabled="true">
+              <stringProp name="DurationAssertion.duration">3000</stringProp>
+            </DurationAssertion>
+            <hashTree/>
+            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                                 testname="Log E2E chain result" enabled="true">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="script">
+def traceId = vars.get("t3_trace_id") ?: "NO_TRACE"
+def orderId = vars.get("t3_order_id") ?: "ORD-FAIL"
+log.info("E2E_TRACE_CHAIN | order_id=" + orderId + " | trace_id=" + traceId + " | pay_status=" + prev.getResponseCode())
+              </stringProp>
+            </JSR223PostProcessor>
+            <hashTree/>
+          </hashTree>
+
+        </hashTree>
+
+      </hashTree>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           TEST 4: TRACE OVERHEAD  –  5 kullanıcı, 15 iterasyon
+           Ölçülen:
+             overhead_percent = (gateway_time - direct_time) / direct_time * 100
+             ms/span          = gateway_time / SPAN_COUNT_PER_ORDER (varsayılan=5)
+           Karşılaştırma:
+             Gateway:  POST /api/v1/orders   (full chain, tracing aktif)
+             Direct:   POST /orders/initiate (order service direkt, gateway yok)
+           Sonuçlar: JMeter log → TRACE_OVERHEAD satırı
+           Delay: Test2 bittikten sonra başlar (t=700s)
+           ═══════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="Test-4: Trace Overhead (5 Users, 15x)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">15</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">5</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">5</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+        <stringProp name="ThreadGroup.delay">700</stringProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T4 POST /api/v1/orders [WITH tracing, via Gateway]" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"customer_id":"TRACE-${__Random(1,50)}","product_id":"PROD-001","quantity":1,"total_price":99.99}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/orders</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                         testname="HTTP Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Record gateway_time" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">vars.put("t4_gateway_time", prev.getTime().toString())</stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T4 POST /orders/initiate [Direct, no Gateway]" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"customer_id":"DIRECT-${__Random(1,50)}","product_id":"PROD-001","quantity":1,"total_price":99.99}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${ORDER_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/orders/initiate</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                         testname="HTTP Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Calculate overhead_percent and ms/span" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">
+def gatewayTime = vars.get("t4_gateway_time") ? vars.get("t4_gateway_time").toLong() : 0L
+def directTime  = prev.getTime()
+def overheadMs  = gatewayTime - directTime
+def overheadPct = directTime > 0 ? (overheadMs / directTime.toDouble()) * 100 : 0.0
+def spanCount   = Integer.parseInt(vars.get("SPAN_COUNT_PER_ORDER") ?: "5")
+def msPerSpan   = spanCount > 0 ? (gatewayTime / spanCount.toDouble()) : 0.0
+
+vars.put("overhead_percent", String.format("%.2f", overheadPct))
+vars.put("ms_per_span",      String.format("%.2f", msPerSpan))
+
+log.info("TRACE_OVERHEAD | gateway=" + gatewayTime + "ms | direct=" + directTime + "ms | overhead_percent=" + String.format("%.2f", overheadPct) + "% | ms_per_span=" + String.format("%.2f", msPerSpan) + "ms")
+            </stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer"
+                       testname="Think Time 200ms" enabled="true">
+          <stringProp name="ConstantTimer.delay">200</stringProp>
+        </ConstantTimer>
+        <hashTree/>
+
+      </hashTree>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           TEST 5: CHAIN LATENCY  –  10 kullanıcı, 50 iterasyon
+           Ölçülen:
+             Full chain end-to-end (Transaction Controller)
+             Per-hop: HOP-1 Order Service, HOP-2 Inventory, HOP-3 Notification
+           SLA:
+             Full chain      &lt; 3000ms
+             Order Service   &lt; 500ms
+             Inventory       &lt; 300ms
+             Notification    &lt; 200ms
+           Sonuçlar: JMeter log → CHAIN_LATENCY satırı
+           Delay: Test4 bittikten sonra başlar (t=800s)
+           ═══════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="Test-5: Chain Latency (10 Users, 50x)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">50</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">10</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">5</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration">600</stringProp>
+        <stringProp name="ThreadGroup.delay">800</stringProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController"
+                               testname="T5 Full Order Chain (end-to-end)" enabled="true">
+          <boolProp name="TransactionController.includeTimers">false</boolProp>
+          <boolProp name="TransactionController.parent">true</boolProp>
+        </TransactionController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                            testname="T5 POST /api/v1/orders [Full Chain via Gateway]" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{"customer_id":"CHAIN-${__Random(1,100)}","product_id":"PROD-00${__Random(1,5)}","quantity":${__Random(1,3)},"total_price":${__Random(100,500)}.00}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+            <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/v1/orders</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                           testname="HTTP Headers" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                               testname="SLA: Full Chain &lt; 3000ms" enabled="true">
+              <stringProp name="DurationAssertion.duration">3000</stringProp>
+            </DurationAssertion>
+            <hashTree/>
+            <JSONPathExtractor guiclass="JSONPathExtractorGui" testclass="JSONPathExtractor"
+                               testname="Extract order_id" enabled="true">
+              <stringProp name="JSONPathExtractor.referenceName">t5_order_id</stringProp>
+              <stringProp name="JSONPathExtractor.jsonPathExpr">$.order_id</stringProp>
+              <stringProp name="JSONPathExtractor.defaultValue">ORD-0001</stringProp>
+            </JSONPathExtractor>
+            <hashTree/>
+            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                                 testname="Record full_chain_time" enabled="true">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="script">vars.put("t5_full_chain", prev.getTime().toString())</stringProp>
+            </JSR223PostProcessor>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+
+        <!-- HOP-1: Order Service -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T5 HOP-1 GET /orders [Order Service :8001]" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${ORDER_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/orders</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                             testname="SLA: Order Service &lt; 500ms" enabled="true">
+            <stringProp name="DurationAssertion.duration">500</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Record order_hop_time" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">vars.put("t5_order_hop", prev.getTime().toString())</stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <!-- HOP-2: Inventory Service -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T5 HOP-2 GET /stock [Inventory Service :8002]" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${INVENTORY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/stock</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                             testname="SLA: Inventory Service &lt; 300ms" enabled="true">
+            <stringProp name="DurationAssertion.duration">300</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Record inventory_hop_time" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">vars.put("t5_inventory_hop", prev.getTime().toString())</stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <!-- HOP-3: Notification Service -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T5 HOP-3 GET /health [Notification Service :8004]" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${NOTIFICATION_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/health</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                             testname="SLA: Notification Service &lt; 200ms" enabled="true">
+            <stringProp name="DurationAssertion.duration">200</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Log per-hop breakdown" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">
+def full     = vars.get("t5_full_chain")    ? vars.get("t5_full_chain").toLong()    : 0L
+def orderHop = vars.get("t5_order_hop")     ? vars.get("t5_order_hop").toLong()     : 0L
+def invHop   = vars.get("t5_inventory_hop") ? vars.get("t5_inventory_hop").toLong() : 0L
+def notifHop = prev.getTime()
+
+vars.put("t5_notif_hop", notifHop.toString())
+log.info("CHAIN_LATENCY | full_chain=" + full + "ms | hop1_order=" + orderHop + "ms | hop2_inventory=" + invHop + "ms | hop3_notification=" + notifHop + "ms")
+            </stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer"
+                       testname="Think Time 300ms" enabled="true">
+          <stringProp name="ConstantTimer.delay">300</stringProp>
+        </ConstantTimer>
+        <hashTree/>
+
+      </hashTree>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           TEST 6: HEALTH MONITOR  –  1 kullanıcı, 20 iterasyon
+           Ölçülen: Uptime% (servis başına + genel toplam)
+           Her iterasyon sonunda JSR223 Sampler → UPTIME_REPORT logu
+           Servisler: Gateway:8000, Order:8001, Inventory:8002, Notification:8004
+           Delay: Test5 bittikten sonra başlar (t=1100s)
+           ═══════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="Test-6: Health Monitor (1 User, 20x)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">20</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+        <stringProp name="ThreadGroup.delay">1100</stringProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T6 GET /health [Gateway :8000]" enabled="true">
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/health</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                             testname="Assert HTTP 200" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Track gateway uptime" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">
+synchronized(props) {
+    props.put("h_gateway_ok",   ((props.get("h_gateway_ok")   ?: 0) as Integer) + (prev.isSuccessful() ? 1 : 0))
+    props.put("h_gateway_fail", ((props.get("h_gateway_fail") ?: 0) as Integer) + (prev.isSuccessful() ? 0 : 1))
+}
+            </stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T6 GET /health [Order Service :8001]" enabled="true">
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${ORDER_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/health</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                             testname="Assert HTTP 200" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Track order uptime" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">
+synchronized(props) {
+    props.put("h_order_ok",   ((props.get("h_order_ok")   ?: 0) as Integer) + (prev.isSuccessful() ? 1 : 0))
+    props.put("h_order_fail", ((props.get("h_order_fail") ?: 0) as Integer) + (prev.isSuccessful() ? 0 : 1))
+}
+            </stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T6 GET /health [Inventory Service :8002]" enabled="true">
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${INVENTORY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/health</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                             testname="Assert HTTP 200" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Track inventory uptime" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">
+synchronized(props) {
+    props.put("h_inventory_ok",   ((props.get("h_inventory_ok")   ?: 0) as Integer) + (prev.isSuccessful() ? 1 : 0))
+    props.put("h_inventory_fail", ((props.get("h_inventory_fail") ?: 0) as Integer) + (prev.isSuccessful() ? 0 : 1))
+}
+            </stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="T6 GET /health [Notification Service :8004]" enabled="true">
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port">${NOTIFICATION_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/health</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                             testname="Assert HTTP 200" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor"
+                               testname="Track notification uptime" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">
+synchronized(props) {
+    props.put("h_notif_ok",   ((props.get("h_notif_ok")   ?: 0) as Integer) + (prev.isSuccessful() ? 1 : 0))
+    props.put("h_notif_fail", ((props.get("h_notif_fail") ?: 0) as Integer) + (prev.isSuccessful() ? 0 : 1))
+}
+            </stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler"
+                       testname="T6 Uptime Report" enabled="true">
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">
+def checks = [
+    "gateway":   ["h_gateway_ok",   "h_gateway_fail"],
+    "order":     ["h_order_ok",     "h_order_fail"],
+    "inventory": ["h_inventory_ok", "h_inventory_fail"],
+    "notif":     ["h_notif_ok",     "h_notif_fail"]
+]
+def totalOk = 0; def totalFail = 0
+def sb = new StringBuilder("UPTIME_REPORT")
+
+checks.each { name, keys ->
+    def ok   = (props.get(keys[0]) ?: 0) as int
+    def fail = (props.get(keys[1]) ?: 0) as int
+    def t    = ok + fail
+    def pct  = t > 0 ? (ok / t.toDouble()) * 100 : 100.0
+    sb.append(" | " + name + "=" + String.format("%.1f", pct) + "%")
+    totalOk += ok; totalFail += fail
+}
+
+def grand   = totalOk + totalFail
+def overall = grand > 0 ? (totalOk / grand.toDouble()) * 100 : 100.0
+sb.append(" | overall=" + String.format("%.2f", overall) + "% (" + totalOk + "/" + grand + " checks)")
+log.info(sb.toString())
+vars.put("uptime_percent", String.format("%.2f", overall))
+
+SampleResult.setResponseData(sb.toString().getBytes("UTF-8"), "UTF-8")
+SampleResult.setSuccessful(true)
+SampleResult.setResponseCode("200")
+SampleResult.setResponseMessage("OK")
+          </stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+
+        <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer"
+                       testname="Think Time 500ms" enabled="true">
+          <stringProp name="ConstantTimer.delay">500</stringProp>
+        </ConstantTimer>
+        <hashTree/>
+
+      </hashTree>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           LISTENERS
+           View Results Tree → disabled (büyük testlerde memory tükenmesi önlenir)
+           Aggregate Report  → Avg / Min / Max / p90 / p95 / p99 / Throughput / Error%
+           Summary Report    → Kompakt genel özet
+           ═══════════════════════════════════════════════════════════════ -->
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector"
+                       testname="View Results Tree" enabled="false">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time><latency>true</latency><timestamp>true</timestamp>
+            <success>true</success><label>true</label><code>true</code>
+            <message>true</message><threadName>true</threadName>
+            <dataType>true</dataType><encoding>false</encoding>
+            <assertions>true</assertions><subresults>true</subresults>
+            <responseData>false</responseData><samplerData>false</samplerData>
+            <xml>false</xml><fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders><requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <bytes>true</bytes><sentBytes>true</sentBytes>
+            <url>true</url><threadCounts>true</threadCounts>
+            <idleTime>true</idleTime><connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename">results/test-results.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector"
+                       testname="Aggregate Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time><latency>true</latency><timestamp>true</timestamp>
+            <success>true</success><label>true</label><code>true</code>
+            <message>true</message><threadName>true</threadName>
+            <dataType>true</dataType><encoding>false</encoding>
+            <assertions>true</assertions><subresults>true</subresults>
+            <responseData>false</responseData><samplerData>false</samplerData>
+            <xml>false</xml><fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders><requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <bytes>true</bytes><sentBytes>true</sentBytes>
+            <url>true</url><threadCounts>true</threadCounts>
+            <idleTime>true</idleTime><connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename">results/aggregate-report.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector"
+                       testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time><latency>true</latency><timestamp>true</timestamp>
+            <success>true</success><label>true</label><code>true</code>
+            <message>true</message>
+          </value>
+        </objProp>
+        <stringProp name="filename">results/summary-report.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
